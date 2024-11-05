@@ -1,0 +1,15 @@
+name: GitHub Workflow for on-premise ETL deployment
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+
+jobs:
+  etl:
+    uses: ./.github/workflows/deploy-etl.yml
+    with:
+      environment: ${{ inputs.environment }}
+    secrets: inherit

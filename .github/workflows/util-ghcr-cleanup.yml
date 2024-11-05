@@ -1,0 +1,58 @@
+name: GitHub Container Registry scheduled cleanup
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 12 * * MON"
+
+env:
+  IMAGE_OWNER: owner
+  TOKEN: ${{ secrets.SERVICE_TOKEN }}
+
+jobs:
+  fetch-images:
+    runs-on: ubuntu-latest
+    outputs:
+      images: ${{ steps.registry-images.outputs.images }}
+    steps:
+      - id: registry-images
+        name: Fetch images from GitHub Container Package registry
+        run: |
+          echo "images=$(curl \
+            -X GET \
+            -H 'application/vnd.github+json' \
+            -H 'Authorization: Bearer ${{ secrets.SERVICE_TOKEN }}' \
+            https://api.github.com/orgs/${{ env.IMAGE_OWNER }}/packages?package_type=container | jq -c '[.[].name]')" >> $GITHUB_OUTPUT
+
+  registry-cleanup:
+    needs: [ fetch-images ]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image: ${{ fromJson(needs.fetch-images.outputs.images) }}
+    steps:
+      - name: Delete packages
+        uses: actions/delete-package-versions@v5
+        with:
+          owner: ${{ env.IMAGE_OWNER }}
+          package-name: ${{ matrix.image }}
+          package-type: container
+          min-versions-to-keep: 10
+          token: ${{ env.TOKEN }}
+
+  untagged-cleanup:
+    needs: [ fetch-images ]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image: ${{ fromJson(needs.fetch-images.outputs.images) }}
+    steps:
+      - name: Delete untagged packages
+        uses: actions/delete-package-versions@v5
+        with:
+          owner: ${{ env.IMAGE_OWNER }}
+          package-name: ${{ matrix.image }}
+          package-type: container
+          min-versions-to-keep: 0
+          delete-only-untagged-versions: 'true'
+          token: ${{ env.TOKEN }}

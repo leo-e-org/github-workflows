@@ -1,0 +1,30 @@
+name: GitHub Workflow for Release publishing (Frontend application)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      base_href:
+        required: true
+        type: string
+      install_devkit:
+        default: false
+        required: false
+        type: boolean
+
+jobs:
+  angular:
+    uses: ./.github/workflows/build-angular-node.yml
+    with:
+      base_href: ${{ inputs.base_href }}
+      install_devkit: ${{ inputs.install_devkit }}
+    secrets: inherit
+
+  artifact:
+    needs: [ angular ]
+    uses: ./.github/workflows/deploy-frontend.yml
+    with:
+      environment: ${{ inputs.environment }}
+    secrets: inherit

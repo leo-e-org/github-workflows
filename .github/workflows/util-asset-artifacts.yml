@@ -1,0 +1,17 @@
+name: Asset generation for GitHub Release
+
+on: [ workflow_call ]
+
+jobs:
+  java:
+    uses: ./.github/workflows/util-jar-asset.yml
+    secrets: inherit
+
+  docker:
+    uses: ./.github/workflows/util-image-download.yml
+    secrets: inherit
+
+  upload:
+    needs: [ java, docker ]
+    uses: ./.github/workflows/util-asset-upload.yml
+    secrets: inherit

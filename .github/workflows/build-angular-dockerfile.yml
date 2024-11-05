@@ -1,0 +1,44 @@
+name: Angular build using Docker
+
+on:
+  workflow_call:
+    inputs:
+      base_href:
+        required: true
+        type: string
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate .npmrc file
+        run: |
+          echo '@PRIVATE_ORGANIZATION:registry=https://npm.pkg.github.com/' >> ./.npmrc
+          echo '//npm.pkg.github.com/:_authToken=${{ secrets.SERVICE_TOKEN }}' >> ./.npmrc
+      - name: Generate artifact folders
+        run: mkdir -pv ./artifact-qa
+
+      - name: Docker image build
+        run: docker build -t image/${{ vars.APPLICATION_NAME }} .
+
+      - name: Angular build (qa)
+        run: |
+          docker run -i --rm --name ${{ vars.APPLICATION_NAME }} \
+            -v ./artifact-qa:/build/dist image/${{ vars.APPLICATION_NAME }} \
+            ng build --configuration=qa --delete-output-path=false --output-hashing=all --base-href=${{ inputs.base_href }}
+
+      - name: Compress build files
+        run: zip -r artifact.zip ./artifact-*
+
+      - name: Upload artifact
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'release')
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact
+          path: ./artifact.zip
+          if-no-files-found: error
+          retention-days: 30

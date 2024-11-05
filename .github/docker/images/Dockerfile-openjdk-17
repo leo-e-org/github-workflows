@@ -1,0 +1,16 @@
+FROM openjdk:17-alpine
+
+RUN apk add --no-cache bash
+RUN apk add --no-cache tzdata
+
+ARG JAR_FILE=*.jar
+ARG APPLICATION_PROPERTIES=application.yml
+ARG LOGBACK_SPRING=log4j2-spring.xml
+
+COPY ${JAR_FILE} app.jar
+COPY ${APPLICATION_PROPERTIES} ${APPLICATION_PROPERTIES}
+COPY ${LOGBACK_SPRING} ${LOGBACK_SPRING}
+
+ENV TZ=America/Sao_Paulo
+
+ENTRYPOINT ["java", "-Xms256m", "-Xmx256m", "-jar", "/app.jar"]

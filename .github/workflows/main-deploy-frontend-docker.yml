@@ -1,0 +1,25 @@
+name: GitHub Workflow for frontend deployment (Dockerfile based)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      base_href:
+        required: true
+        type: string
+
+jobs:
+  angular:
+    uses: ./.github/workflows/build-angular-dockerfile.yml
+    with:
+      base_href: ${{ inputs.base_href }}
+    secrets: inherit
+
+  artifact:
+    needs: [ angular ]
+    uses: ./.github/workflows/deploy-frontend.yml
+    with:
+      environment: ${{ inputs.environment }}
+    secrets: inherit

@@ -1,0 +1,56 @@
+name: ETL project deployment
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    environment: ${{ inputs.environment }}
+    concurrency: ${{ inputs.environment }}
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create artifact ZIP
+        run: zip -r artifact.zip ./*
+      - name: Create SSH key
+        run: |
+          echo -e "${{ secrets.SSH_KEY }}" > ./ssh.key
+          chmod 600 ./ssh.key
+
+      - name: Set repository name environment variable
+        run: echo "REPOSITORY_NAME=$(echo ${{ github.repository }} | cut -c 22- | tr _ -)" >> $GITHUB_ENV
+      - name: Set user home directory environment variable
+        run: echo "USER_HOME_DIRECTORY=$(echo /home/${{ vars.SERVER_USER }})" >> $GITHUB_ENV
+      - name: Set backup directory environment variable
+        run: echo "ETL_BACKUP_DIRECTORY=$(echo ${{ env.USER_HOME_DIRECTORY }}/backup)" >> $GITHUB_ENV
+      - name: Set deploy directory environment variable
+        run: echo "ETL_DIRECTORY=$(echo ${{ vars.SERVER_DIRECTORY }}/${{ env.REPOSITORY_NAME }})" >> $GITHUB_ENV
+
+      - name: Deploy files
+        run: |
+          echo -e "Copying artifact..."
+          scp -2 -v -i ./ssh.key -o StrictHostKeychecking=no -r -C ./artifact.zip ${{ vars.SERVER_USER }}@${{ vars.SERVER }}:${{ vars.SERVER_DIRECTORY }}
+          echo -e "Deploying files..."
+          ssh -2 -v -i ./ssh.key -o StrictHostKeychecking=no ${{ vars.SERVER_USER }}@${{ vars.SERVER }} "
+          sudo mkdir -pv ${{ env.ETL_BACKUP_DIRECTORY }}
+          sudo find ${{ vars.SERVER_DIRECTORY }} -type d -name "${{ env.REPOSITORY_NAME }}" -exec zip -r ${{ env.ETL_BACKUP_DIRECTORY }}/${{ env.REPOSITORY_NAME }}-bkp$(date +'%m%d%Y_%H%M%S').zip {} \;
+          sudo rm -rf ${{ env.ETL_DIRECTORY }}
+          sudo mkdir -pv ${{ env.ETL_DIRECTORY }}
+          sudo unzip -o ${{ vars.SERVER_DIRECTORY }}/artifact.zip -d ${{ env.ETL_DIRECTORY }}
+          sudo rm -f ${{ vars.SERVER_DIRECTORY }}/artifact.zip
+          sudo chown ${{ vars.SERVER_USER }}: -R ${{ env.ETL_DIRECTORY }}
+          "
+
+      - name: Delete old deployment backups
+        run: |
+          ssh -2 -v -i ./ssh.key -o StrictHostKeychecking=no ${{ vars.SERVER_USER }}@${{ vars.SERVER }} "
+          cd ${{ env.ETL_BACKUP_DIRECTORY }}
+          find . -type f -mtime +30 -exec sh -c 'rm -fv "$1" || true' sh {} \;
+          "
+      - name: Delete local artifacts
+        run: |
+          rm -rf ./*

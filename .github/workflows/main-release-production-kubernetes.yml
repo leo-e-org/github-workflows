@@ -1,0 +1,19 @@
+name: GitHub Workflow for Release publishing (Kubernetes on-premise application)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+
+jobs:
+  assets:
+    uses: ./.github/workflows/util-asset-artifacts.yml
+    secrets: inherit
+
+  deploy:
+    uses: ./.github/workflows/deploy-kubernetes.yml
+    with:
+      environment: ${{ inputs.environment }}
+    secrets: inherit

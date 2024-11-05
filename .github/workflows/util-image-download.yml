@@ -1,0 +1,39 @@
+name: Docker image download for GitHub Release asset
+
+on: [ workflow_call ]
+
+env:
+  DOCKER_REGISTRY: ghcr.io
+  IMAGE_OWNER: owner
+  USER: ${{ secrets.SERVICE_USER }}
+  TOKEN: ${{ secrets.SERVICE_TOKEN }}
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set IMAGE_NAME environment variable
+        run: echo "IMAGE_NAME=$(echo ${{ github.repository }} | cut -c 22- | tr _ -)" >> $GITHUB_ENV
+      - name: Set IMAGE_VERSION environment variable
+        run: echo "IMAGE_VERSION=$(echo ${{ github.ref_name }} | tr / - | tr _ -)" >> $GITHUB_ENV
+      - name: Set DEPLOY_IMAGE environment variable
+        run: echo "DEPLOY_IMAGE=$(echo ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}-pd:${{ env.IMAGE_VERSION }})" >> $GITHUB_ENV
+
+      - name: Download image
+        run: |
+          echo -e "Logging in to GitHub Packages..."
+          echo "${{ env.TOKEN }}" | docker login ${{ env.DOCKER_REGISTRY }} -u ${{ env.USER }} --password-stdin
+          echo -e "Loading image..."
+          docker pull ${{ env.DEPLOY_IMAGE }}
+      - name: Generate TAR from image
+        run: |
+          echo -e "Generating TAR..."
+          docker save -o release-image.tar ${{ env.DEPLOY_IMAGE }}
+
+      - name: Upload image
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact
+          path: ./*.tar
+          if-no-files-found: error
+          retention-days: 10

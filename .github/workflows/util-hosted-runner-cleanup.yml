@@ -1,0 +1,26 @@
+name: GitHub Self-hosted Runner scheduled cleanup
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * MON"
+
+env:
+  DOCKER_REGISTRY: ghcr.io
+
+jobs:
+  runner-cleanup:
+    runs-on: ${{ matrix.runners }}
+    strategy:
+      matrix:
+        runners: [ runner1 ]
+    defaults:
+      run:
+        working-directory: /home/github_runner/_work
+    steps:
+      - name: Delete deployments
+        run: find . -mindepth 1 -maxdepth 1 -type d -not -name '_*' -exec sh -c 'rm -rfv "$1" || true' sh {} \;
+      - name: Docker logout from GitHub Packages
+        run: docker logout ${{ env.DOCKER_REGISTRY }}
+      - name: Delete dangling images in Docker
+        run: docker image prune -af

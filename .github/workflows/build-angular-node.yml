@@ -1,0 +1,68 @@
+name: Node.js 18.x build using Angular
+
+on:
+  workflow_call:
+    inputs:
+      base_href:
+        required: true
+        type: string
+      install_devkit:
+        default: false
+        required: false
+        type: boolean
+
+jobs:
+  node-18:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [ 18.x ]
+    defaults:
+      run:
+        working-directory: ./
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure service token (Dependabot)
+        if: github.actor == 'dependabot[bot]'
+        run: echo "TOKEN=$(echo ${{ secrets.DEPENDABOT_TOKEN }})" >> $GITHUB_ENV
+      - name: Configure service token (Actions)
+        if: github.actor != 'dependabot[bot]'
+        run: echo "TOKEN=$(echo ${{ secrets.SERVICE_TOKEN }})" >> $GITHUB_ENV
+
+      - name: Node.js ${{ matrix.node-version }} setup
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Generate .npmrc file
+        run: |
+          echo '@PRIVATE_ORGANIZATION:registry=https://npm.pkg.github.com/' >> ./.npmrc
+          echo '//npm.pkg.github.com/:_authToken=${{ env.TOKEN }}' >> ./.npmrc
+      - name: npm install
+        run: npm install
+        env:
+          TOKEN: ${{ env.TOKEN }}
+      - name: Angular CLI install
+        run: npm install -g @angular/cli@15.0.1
+      - name: Angular DevKit Core install
+        if: inputs.install_devkit
+        run: npm install @angular-devkit/core --save-dev
+
+      - name: Generate artifact folders
+        run: mkdir -pv ./artifact-qa
+
+      - name: Angular build (qa)
+        run: ng build --configuration=qa --delete-output-path=false --output-hashing=all --base-href=${{ inputs.base_href }} --output-path ./artifact-qa
+
+      - name: Compress build files
+        run: zip -r artifact.zip ./artifact-*
+
+      - name: Upload artifact
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'release')
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact
+          path: ./artifact.zip
+          if-no-files-found: error
+          retention-days: 30

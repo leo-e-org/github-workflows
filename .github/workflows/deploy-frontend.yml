@@ -1,0 +1,83 @@
+name: Frontend deployment
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+
+jobs:
+  download-artifact:
+    runs-on: self-hosted
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: artifact
+          path: ./
+      - name: Save artifacts to cache
+        uses: actions/cache@v4
+        with:
+          path: ./artifact*
+          key: artifact-${{ github.run_id }}-${{ github.run_number }}
+
+  publish-artifact:
+    needs: [ download-artifact ]
+    environment: ${{ inputs.environment }}
+    concurrency: ${{ inputs.environment }}
+    runs-on: self-hosted
+    steps:
+      - name: Retrieve artifacts from cache
+        uses: actions/cache@v4
+        with:
+          path: ./artifact*
+          key: artifact-${{ github.run_id }}-${{ github.run_number }}
+      - name: Unzip artifacts from cache
+        run: unzip -o artifact.zip
+
+      - name: Create SSH key
+        run: |
+          echo -e "${{ secrets.SSH_KEY }}" > ./ssh.key
+          chmod 600 ./ssh.key
+      - name: Create artifact ZIP
+        run: zip -r artifact.zip ./artifact-${{ inputs.environment }}
+
+      - name: Set user home directory environment variable
+        run: echo "USER_HOME_DIRECTORY=$(echo /home/${{ vars.SERVER_USER_FRONTEND }})" >> $GITHUB_ENV
+      - name: Set backup directory environment variable
+        run: echo "BACKUP_DIRECTORY=$(echo ${{ env.USER_HOME_DIRECTORY }}/backup)" >> $GITHUB_ENV
+      - name: Set frontend default directory environment variable
+        run: echo "DEFAULT_DIRECTORY=$(echo /var/www/html)" >> $GITHUB_ENV
+      - name: Set deploy directory environment variable
+        run: echo "DEPLOY_DIRECTORY=$(echo ${{ env.DEFAULT_DIRECTORY }}/${{ vars.APPLICATION }})" >> $GITHUB_ENV
+
+      - name: Deploy application
+        run: |
+          echo -e "Copying artifact..."
+          scp -2 -v -i ./ssh.key -o StrictHostKeychecking=no -r -C ./artifact.zip ${{ vars.SERVER_USER_FRONTEND }}@${{ vars.SERVER }}:${{ env.DEFAULT_DIRECTORY }}
+          echo -e "Deploying artifact..."
+          ssh -2 -v -i ./ssh.key -o StrictHostKeychecking=no ${{ vars.SERVER_USER_FRONTEND }}@${{ vars.SERVER }} "
+          sudo mkdir -pv ${{ env.BACKUP_DIRECTORY }}
+          sudo find ${{ env.DEFAULT_DIRECTORY }} -type d -name "${{ vars.APPLICATION }}" -exec zip -r ${{ env.BACKUP_DIRECTORY }}/${{ vars.APPLICATION }}-bkp$(date +'%m%d%Y_%H%M%S').zip {} \;
+          sudo rm -rf ${{ env.DEPLOY_DIRECTORY }}
+          sudo unzip -o ${{ env.DEFAULT_DIRECTORY }}/artifact.zip -d ${{ env.DEFAULT_DIRECTORY }}
+          sudo rm -f ${{ env.DEFAULT_DIRECTORY }}/artifact.zip
+          sudo mv ${{ env.DEFAULT_DIRECTORY }}/artifact-${{ inputs.environment }}/ ${{ env.DEPLOY_DIRECTORY }}
+          sudo chmod 775 -R ${{ env.DEPLOY_DIRECTORY }}
+          sudo chown www-data:www-data -R ${{ env.DEPLOY_DIRECTORY }}
+          sudo service nginx stop
+          sudo service nginx start
+          "
+
+      - name: Delete old deployment backups
+        run: |
+          ssh -2 -v -i ./ssh.key -o StrictHostKeychecking=no ${{ vars.SERVER_USER_FRONTEND }}@${{ vars.SERVER }} "
+          cd ${{ env.BACKUP_DIRECTORY }}
+          find . -type f -mtime +30 -exec sh -c 'rm -fv "$1" || true' sh {} \;
+          "
+      - name: Delete local artifacts
+        run: |
+          rm -f ./artifact.zip
+          rm -f ./ssh.key
+          rm -rf ./artifact-${{ inputs.environment }}/

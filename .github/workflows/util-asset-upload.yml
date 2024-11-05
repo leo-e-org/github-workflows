@@ -1,0 +1,40 @@
+name: Asset upload for GitHub Release
+
+on: [ workflow_call ]
+
+jobs:
+  artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: artifact
+          path: ./
+
+      - name: Fetch ID from release tag
+        run: |
+          echo "RELEASE_ID=$(curl \
+            -X GET \
+            -H 'application/vnd.github+json' \
+            -H 'Authorization: Bearer ${{ secrets.SERVICE_TOKEN }}' \
+            https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ github.event.release.tag_name }} | jq .id)" >> $GITHUB_ENV
+
+      - name: Upload JAR asset
+        run: |
+          curl \
+            -X POST \
+            -H 'application/vnd.github+json' \
+            -H 'Authorization: Bearer ${{ secrets.SERVICE_TOKEN }}' \
+            -H 'Content-Type: application/octet-stream' \
+            --data-binary '@./app.jar' \
+            https://uploads.github.com/repos/${{ github.repository }}/releases/${{ env.RELEASE_ID }}/assets?name=app.jar
+      - name: Upload TAR asset
+        run: |
+          curl \
+            -X POST \
+            -H 'application/vnd.github+json' \
+            -H 'Authorization: Bearer ${{ secrets.SERVICE_TOKEN }}' \
+            -H 'Content-Type: application/octet-stream' \
+            --data-binary '@./release-image.tar' \
+            https://uploads.github.com/repos/${{ github.repository }}/releases/${{ env.RELEASE_ID }}/assets?name=release-image.tar

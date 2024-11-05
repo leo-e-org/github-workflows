@@ -1,0 +1,39 @@
+name: User variables configuration for subsequent jobs
+
+on:
+  workflow_call:
+    outputs:
+      user:
+        value: ${{ jobs.setup.outputs.user }}
+      token:
+        value: ${{ jobs.setup.outputs.token }}
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      user: ${{ steps.env-variables.outputs.user }}
+      token: ${{ steps.env-variables.outputs.token }}
+    env:
+      PGP_KEY: ${{ secrets.PGP_SECRET_PASSPHRASE }}
+    steps:
+      - name: Configure Actions variables
+        if: github.actor != 'dependabot[bot]'
+        run: |
+          actions_user=$(gpg --symmetric --batch --passphrase "$PGP_KEY" --output - <(echo ${{ secrets.SERVICE_USER }}) | base64 -w0)
+          actions_token=$(gpg --symmetric --batch --passphrase "$PGP_KEY" --output - <(echo ${{ secrets.SERVICE_TOKEN }}) | base64 -w0)
+          echo "USER=$(echo $actions_user)" >> $GITHUB_ENV
+          echo "TOKEN=$(echo $actions_token)" >> $GITHUB_ENV
+
+      - name: Configure Dependabot variables
+        if: github.actor == 'dependabot[bot]'
+        run: |
+          dependabot_user=$(gpg --symmetric --batch --passphrase "$PGP_KEY" --output - <(echo ${{ secrets.DEPENDABOT_USER }}) | base64 -w0)
+          dependabot_token=$(gpg --symmetric --batch --passphrase "$PGP_KEY" --output - <(echo ${{ secrets.DEPENDABOT_TOKEN }}) | base64 -w0)
+          echo "USER=$(echo $dependabot_user)" >> $GITHUB_ENV
+          echo "TOKEN=$(echo $dependabot_token)" >> $GITHUB_ENV
+
+      - id: env-variables
+        run: |
+          echo "user=${{ env.USER }}" >> $GITHUB_OUTPUT
+          echo "token=${{ env.TOKEN }}" >> $GITHUB_OUTPUT

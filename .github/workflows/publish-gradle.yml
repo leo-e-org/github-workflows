@@ -1,0 +1,56 @@
+name: Java dependency publish using Gradle Wrapper (latest)
+
+on:
+  workflow_call:
+    inputs:
+      gradle_run:
+        default: clean build --no-daemon
+        description: Gradle command line task for run
+        required: false
+        type: string
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: JDK setup
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'microsoft'
+          architecture: x64
+
+      - name: Generate gradle.properties file
+        run: |
+          echo -e "githubUser="${{ secrets.SERVICE_USER }} > "${GITHUB_WORKSPACE}"/gradle.properties
+          echo -e "githubToken="${{ secrets.SERVICE_TOKEN }} >> "${GITHUB_WORKSPACE}"/gradle.properties
+      - name: Change gradlew permission
+        run: chmod +x ./gradlew
+      - name: Gradle setup (build)
+        uses: gradle/actions/setup-gradle@v3
+      - name: Gradle build (wrapper)
+        id: gradle-build
+        run: ./gradlew ${{ inputs.gradle_run }}
+
+      - name: Gradle setup (publish)
+        uses: gradle/actions/setup-gradle@v3
+      - name: Gradle publish (wrapper)
+        id: gradle-publish
+        continue-on-error: true
+        if: steps.gradle-build.outcome == 'success'
+        run: ./gradlew publish --no-daemon
+
+      - name: Error log (publish)
+        if: steps.gradle-publish.outcome == 'failure'
+        run: echo "::warning ::Error publishing dependency to Maven packages"
+      - name: Success log (publish)
+        if: steps.gradle-publish.outcome == 'success'
+        run: echo "::notice ::Published dependency to Maven packages"
+
+      - name: Upload build results
+        uses: actions/upload-artifact@v4
+        with:
+          name: Gradle build results
+          path: ./build/reports/*
+          retention-days: 10

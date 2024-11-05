@@ -1,0 +1,20 @@
+name: GitHub Workflow for frontend application build (Node.js 18.x)
+
+on:
+  workflow_call:
+    inputs:
+      base_href:
+        required: true
+        type: string
+      install_devkit:
+        default: false
+        required: false
+        type: boolean
+
+jobs:
+  angular:
+    uses: ./.github/workflows/build-angular-node.yml
+    with:
+      base_href: ${{ inputs.base_href }}
+      install_devkit: ${{ inputs.install_devkit }}
+    secrets: inherit

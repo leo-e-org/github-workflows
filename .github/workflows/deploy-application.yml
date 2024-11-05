@@ -1,0 +1,58 @@
+name: Application deployment (on-premise server)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+
+jobs:
+  download-artifact:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: artifact
+          path: ./artifact/
+      - name: Save artifact to cache
+        uses: actions/cache@v4
+        with:
+          path: ./artifact*
+          key: artifact-${{ github.run_id }}-${{ github.run_number }}
+
+  deploy-artifact:
+    needs: [ download-artifact ]
+    environment: ${{ inputs.environment }}
+    concurrency: ${{ inputs.environment }}
+    runs-on: self-hosted
+    steps:
+      - name: Retrieve artifact from cache
+        uses: actions/cache@v4
+        with:
+          path: ./artifact*
+          key: artifact-${{ github.run_id }}-${{ github.run_number }}
+      - name: Create SSH key
+        run: |
+          echo -e "${{ secrets.SSH_KEY }}" > ./ssh.key
+          chmod 600 ./ssh.key
+      - name: Deploy artifact
+        run: |
+          echo -e "Stopping service..."
+          ssh -2 -v -i ./ssh.key -o StrictHostKeychecking=no -t ${{ vars.APPLICATION }}@${{ vars.SERVER }} "
+          sudo service ${{ vars.APPLICATION }} stop
+          "
+          echo -e "Copying artifact..."
+          scp -2 -v -i ./ssh.key -o StrictHostKeychecking=no -C ./artifact/*.jar ${{ vars.APPLICATION }}@${{ vars.SERVER }}:/${{ vars.APPLICATION }}
+          echo -e "Starting service..."
+          ssh -2 -v -i ./ssh.key -o StrictHostKeychecking=no -t ${{ vars.APPLICATION }}@${{ vars.SERVER }} "
+          chmod 755 /${{ vars.APPLICATION }}/${{ vars.APPLICATION }}.jar
+          sudo systemctl daemon-reload
+          sudo service ${{ vars.APPLICATION }} start
+          "
+      - name: Delete local artifacts
+        run: |
+          rm -rf ./artifact/
+          rm -rf ./ssh.key

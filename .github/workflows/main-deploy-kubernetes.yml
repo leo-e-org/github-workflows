@@ -1,0 +1,15 @@
+name: GitHub Workflow for on-premise Kubernetes deployment
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+
+jobs:
+  kubernetes:
+    uses: ./.github/workflows/deploy-kubernetes.yml
+    with:
+      environment: ${{ inputs.environment }}
+    secrets: inherit

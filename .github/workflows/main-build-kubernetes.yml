@@ -1,0 +1,45 @@
+name: GitHub Workflow for Kubernetes application build
+
+on:
+  workflow_call:
+    inputs:
+      java_version:
+        default: '21'
+        required: false
+        type: string
+      java_distribution:
+        default: 'microsoft'
+        required: false
+        type: string
+      lint_source_files:
+        default: true
+        required: false
+        type: boolean
+
+jobs:
+  lint-sources:
+    if: contains(github.ref_name, 'main') != true && inputs.lint_source_files
+    uses: ./.github/workflows/lint-java.yml
+    with:
+      regex_include: .*src/.*
+    secrets: inherit
+
+  lint-tests:
+    if: contains(github.ref_name, 'main') != true && inputs.lint_source_files
+    uses: ./.github/workflows/lint-java.yml
+    with:
+      regex_include: .*test/.*
+    secrets: inherit
+
+  java:
+    uses: ./.github/workflows/build-gradle.yml
+    with:
+      java_version: ${{ inputs.java_version }}
+      java_distribution: ${{ inputs.java_distribution }}
+    secrets: inherit
+
+  docker:
+    needs: [ java ]
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/build-docker.yml
+    secrets: inherit

@@ -1,0 +1,40 @@
+name: Kubernetes file deployment
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      target_folder:
+        required: true
+        type: string
+
+jobs:
+  apply:
+    environment: ${{ inputs.environment }}
+    concurrency: ${{ inputs.environment }}
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create SSH key
+        run: |
+          echo -e "${{ secrets.SSH_KEY }}" > ./ssh.key
+          chmod 600 ./ssh.key
+
+      - name: Create deploy directory
+        run: ssh -2 -i ./ssh.key -o StrictHostKeychecking=no -t ${{ vars.SERVER_USER }}@${{ vars.SERVER_HOST }} mkdir -pv /home/kubernetes_admin/deploy/${{ inputs.target_folder }}
+      - name: Copy YAML files
+        run: scp -2 -i ./ssh.key ./files/${{ inputs.environment }}/* ${{ vars.SERVER_USER }}@${{ vars.SERVER_HOST }}:/home/kubernetes_admin/deploy/${{ inputs.target_folder }}
+      - name: Apply files to Kubernetes
+        run: |
+          ssh -2 -i ./ssh.key -o StrictHostKeychecking=no -t ${{ vars.SERVER_USER }}@${{ vars.SERVER_HOST }} "
+          echo -e "Applying YAML files to Kubernetes..."
+          kubectl apply -f /home/kubernetes_admin/deploy/${{ inputs.target_folder }}
+          rm -rf /home/kubernetes_admin/deploy/${{ inputs.target_folder }}
+          "
+
+      - name: Delete local artifacts
+        run: |
+          rm -rf ./ssh.key
+          rm -rf ./files

@@ -1,0 +1,5 @@
+# Default owners for everything in the repository
+*          @IT/admins
+
+# Code owners should be handled by admins only
+CODEOWNERS @IT/admins

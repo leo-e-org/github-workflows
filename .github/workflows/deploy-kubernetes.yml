@@ -1,0 +1,78 @@
+name: Application deployment (Kubernetes cluster)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+
+env:
+  DOCKER_REGISTRY: ghcr.io
+  IMAGE_OWNER: owner
+  USER: ${{ secrets.SERVICE_USER }}
+  TOKEN: ${{ secrets.SERVICE_TOKEN }}
+
+jobs:
+  deploy:
+    environment: ${{ inputs.environment }}
+    concurrency: ${{ inputs.environment }}
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure image registry
+        run: sed -i -e 's/${docker_registry}/${{ vars.KUBERNETES_REGISTRY }}/g' ./deploy/${{ inputs.environment }}/deployment.yaml
+      - name: Create SSH key
+        run: |
+          echo -e "${{ secrets.SSH_KEY }}" > ./ssh.key
+          chmod 600 ./ssh.key
+
+      - name: Set IMAGE_VERSION environment variable
+        run: echo "IMAGE_VERSION=$(echo ${{ github.ref_name }} | tr / - | tr _ -)" >> $GITHUB_ENV
+      - name: Set IMAGE_NAME environment variable
+        run: echo "IMAGE_NAME=$(echo ${{ github.repository }} | cut -c 22- | tr _ -)" >> $GITHUB_ENV
+      - name: Set DEPLOY_IMAGE environment variable
+        run: echo "DEPLOY_IMAGE=$(echo ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}-${{ inputs.environment }}:${{ env.IMAGE_VERSION }})" >> $GITHUB_ENV
+      - name: Set KUBERNETES_IMAGE environment variable
+        run: echo "KUBERNETES_IMAGE=$(echo ${{ vars.KUBERNETES_REGISTRY }}/image/${{ vars.APPLICATION_NAME }}:latest)" >> $GITHUB_ENV
+      - name: Set default directory environment variable
+        run: echo "DEFAULT_DIRECTORY=$(echo /home/${{ vars.SERVER_USER }}/deploy)" >> $GITHUB_ENV
+      - name: Set deploy directory environment variable
+        run: echo "DEPLOY_DIRECTORY=$(echo ${{ env.DEFAULT_DIRECTORY }}/${{ vars.APPLICATION_NAME }})" >> $GITHUB_ENV
+
+      - name: Create deploy directory
+        run: ssh -2 -i ./ssh.key -o StrictHostKeychecking=no -t ${{ vars.SERVER_USER }}@${{ vars.SERVER_HOST }} mkdir -pv ${{ env.DEPLOY_DIRECTORY }}
+      - name: Copy deployment.yaml and application properties
+        run: |
+          if [ -e ./deploy/${{ inputs.environment }}/*.yml ]
+          then
+            scp -2 -i ./ssh.key -o StrictHostKeychecking=no ./deploy/${{ inputs.environment }}/*.yaml ./deploy/${{ inputs.environment }}/*.yml ${{ vars.SERVER_USER }}@${{ vars.SERVER_HOST }}:${{ env.DEPLOY_DIRECTORY }}
+          else
+            scp -2 -i ./ssh.key -o StrictHostKeychecking=no ./deploy/${{ inputs.environment }}/*.yaml ./deploy/${{ inputs.environment }}/*.properties ${{ vars.SERVER_USER }}@${{ vars.SERVER_HOST }}:${{ env.DEPLOY_DIRECTORY }}
+          fi
+
+      - name: Deploy image to Kubernetes
+        run: |
+          ssh -2 -i ./ssh.key -o StrictHostKeychecking=no -t ${{ vars.SERVER_USER }}@${{ vars.SERVER_HOST }} "
+          echo -e "Logging in to GitHub Packages..."
+          echo "${{ env.TOKEN }}" | sudo docker login ${{ env.DOCKER_REGISTRY }} -u ${{ env.USER }} --password-stdin
+          echo -e "Loading image..."
+          cd ${{ env.DEPLOY_DIRECTORY }}
+          sudo cp /etc/kubernetes/admin.conf /home/kubernetes_admin/.kube/config
+          sudo docker pull ${{ env.DEPLOY_IMAGE }}
+          sudo docker tag ${{ env.DEPLOY_IMAGE }} ${{ env.KUBERNETES_IMAGE }}
+          sudo docker logout ${{ env.DOCKER_REGISTRY }}
+          echo -e "Applying deployment.yaml..."
+          kubectl apply -f deployment.yaml
+          echo -e "Pushing image to Registry..."
+          sudo docker push ${{ env.KUBERNETES_IMAGE }}
+          echo -e "Restarting deployment..."
+          kubectl rollout restart deployment ${{ vars.APPLICATION_NAME }}
+          kubectl rollout status deployment ${{ vars.APPLICATION_NAME }}
+          sudo docker rmi -f ${{ env.DEPLOY_IMAGE }}
+          sudo docker rmi -f ${{ env.KUBERNETES_IMAGE }}
+          "
+
+      - name: Delete local artifacts
+        run: |
+          rm -rf ./ssh.key

@@ -1,0 +1,38 @@
+name: JAR build for GitHub Release asset
+
+on: [ workflow_call ]
+
+jobs:
+  jar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: JDK setup
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'microsoft'
+          architecture: x64
+
+      - name: Generate gradle.properties file
+        run: |
+          echo -e "githubUser="${{ secrets.SERVICE_USER }} > "${GITHUB_WORKSPACE}"/gradle.properties
+          echo -e "githubToken="${{ secrets.SERVICE_TOKEN }} >> "${GITHUB_WORKSPACE}"/gradle.properties
+      - name: Change gradlew permission
+        run: chmod +x ./gradlew
+
+      - name: Gradle setup
+        uses: gradle/actions/setup-gradle@v3
+      - name: Gradle build (wrapper)
+        run: ./gradlew clean build --no-daemon
+
+      - name: Copy artifact
+        run: cp -rv ./build/libs/*.jar ./
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact
+          path: ./*.jar
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 30

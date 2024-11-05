@@ -1,0 +1,103 @@
+name: Flyway database migration
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+
+env:
+  WORKING_DIRECTORY: ${{ github.workspace }}
+  FLYWAY_LICENSE: ${{ secrets.FLYWAY_LICENSE }}
+  FLYWAY_EDITION: ${{ vars.FLYWAY_EDITION }}
+  FLYWAY_TARGET: ${{ vars.FLYWAY_TARGET }}
+  FLYWAY_OUT_OF_ORDER: ${{ vars.FLYWAY_OUT_OF_ORDER }}
+  FLYWAY_BASELINE: ${{ vars.FLYWAY_BASELINE }}
+  FLYWAY_COMMAND: ${{ vars.FLYWAY_COMMAND }}
+
+jobs:
+  migrate:
+    environment: ${{ inputs.environment }}
+    concurrency: ${{ inputs.environment }}
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create volume folder
+        run: |
+          sudo rm -rfv flyway && sudo mkdir flyway
+          sudo rm -rfv workdir && sudo mkdir workdir
+      - name: Change volume folder permissions
+        run: |
+          sudo chmod 777 -R flyway
+          sudo chmod 777 -R workdir
+      - name: Create environment configuration
+        run: |
+          echo FLYWAY_LICENSE_KEY=${{ env.FLYWAY_LICENSE }} >> env.repair
+          echo FLYWAY_EDITION=${{ env.FLYWAY_EDITION }} >> env.repair
+          echo FLYWAY_SCHEMAS=${{ vars.DATABASE_SCHEMA }} >> env.repair
+          echo FLYWAY_URL='${{ vars.DATABASE_URL }}' >> env.repair
+          echo FLYWAY_USER=${{ vars.DATABASE_USER }} >> env.repair
+          echo FLYWAY_PASSWORD='${{ secrets.DATABASE_PASSWORD }}' >> env.repair
+          echo FLYWAY_TABLE=flyway_schema_history >> env.repair
+
+          cp env.repair env.run
+          awk '!/FLYWAY_TABLE/' env.run > temp && mv temp env.run
+          echo FLYWAY_TARGET=${{ env.FLYWAY_TARGET }} >> env.run
+          echo FLYWAY_OUT_OF_ORDER=${{ env.FLYWAY_OUT_OF_ORDER }} >> env.run
+          echo FLYWAY_BASELINE_ON_MIGRATE=true >> env.run
+          echo FLYWAY_BASELINE_VERSION=${{ env.FLYWAY_BASELINE }} >> env.run
+
+          cp env.run env.dry-run
+          echo FLYWAY_DRYRUN_OUTPUT=/flyway/workdir/dry-run.sql >> env.dry-run
+
+          cp env.repair env.info
+          awk '!/FLYWAY_TABLE/' env.info > temp && mv temp env.info
+          echo TZ=GMT >> env.info
+
+          sudo chmod 777 env.repair
+          sudo chmod 777 env.run
+          sudo chmod 777 env.dry-run
+          sudo chmod 777 env.info
+
+      - name: Flyway repair
+        run: >
+          sudo docker run --rm
+          -v ${{ env.WORKING_DIRECTORY }}/migrations:/flyway/sql
+          -v ${{ env.WORKING_DIRECTORY }}/conf:/flyway/conf
+          --env-file env.repair
+          flyway/flyway:6.0.8 repair
+      - name: Flyway dry-run
+        run: >
+          sudo docker run --rm
+          -v ${{ env.WORKING_DIRECTORY }}/migrations:/flyway/sql
+          -v ${{ env.WORKING_DIRECTORY }}/conf:/flyway/conf
+          -v ${{ env.WORKING_DIRECTORY }}/workdir:/flyway/workdir
+          --env-file env.dry-run
+          flyway/flyway:6.0.8 ${{ env.FLYWAY_COMMAND }}
+      - name: Flyway dry-run result
+        run: cat ./workdir/dry-run.sql
+      - name: Flyway run
+        run: >
+          sudo docker run --rm
+          -v ${{ env.WORKING_DIRECTORY }}/migrations:/flyway/sql
+          -v ${{ env.WORKING_DIRECTORY }}/drivers:/flyway/drivers
+          -v ${{ env.WORKING_DIRECTORY }}/conf:/flyway/conf
+          --env-file env.run
+          flyway/flyway:6.0.8 ${{ env.FLYWAY_COMMAND }}
+      - name: Flyway info result
+        run: >
+          sudo docker run --rm
+          -v ${{ env.WORKING_DIRECTORY }}/migrations:/flyway/sql
+          -v ${{ env.WORKING_DIRECTORY }}/drivers:/flyway/drivers
+          -v ${{ env.WORKING_DIRECTORY }}/conf:/flyway/conf
+          --env-file env.info
+          -e TZ=GMT
+          flyway/flyway:6.0.8 info
+
+      - name: Delete local artifacts
+        run: |
+          rm -rf env.repair
+          rm -rf env.run
+          rm -rf env.dry-run
+          rm -rf env.info
