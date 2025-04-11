@@ -12,9 +12,6 @@ env:
   JAVA_LINT_CFG_URL: https://raw.githubusercontent.com/owner/github_workflows/main/.github/linters/sun_checks.xml
   YAML_LINT_CFG_URL: https://raw.githubusercontent.com/owner/github_workflows/main/.github/linters/.yaml-lint.yml
 
-permissions:
-  contents: read
-
 jobs:
   check:
     name: Check
