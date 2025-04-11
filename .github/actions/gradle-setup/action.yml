@@ -1,0 +1,32 @@
+name: Gradle composite action
+description: Sets up Java, configures Gradle and runs the needed tasks
+
+inputs:
+  gradle_run:
+    description: Gradle command line task for run
+    required: true
+  java_distribution:
+    description: JDK distribution for artifact build
+    required: true
+  java_version:
+    description: JDK version for artifact build
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: JDK setup
+      uses: actions/setup-java@v4
+      with:
+        architecture: x64
+        distribution: ${{ inputs.java_distribution }}
+        java-version: ${{ inputs.java_version }}
+
+    - name: Change gradlew permission
+      run: chmod +x ./gradlew
+      shell: bash
+    - name: Gradle setup
+      uses: gradle/actions/setup-gradle@v4
+    - name: Gradle task (wrapper)
+      run: ./gradlew ${{ inputs.gradle_run }}
+      shell: bash

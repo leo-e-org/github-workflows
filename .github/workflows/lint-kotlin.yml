@@ -1,4 +1,4 @@
-name: Super-Linter (Kotlin code base)
+name: Super-Linter workflow (Kotlin code base)
 
 on:
   workflow_call:

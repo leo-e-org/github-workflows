@@ -1,4 +1,4 @@
-name: Super-Linter (Java code base)
+name: Super-Linter workflow (Java code base)
 
 on:
   workflow_call:

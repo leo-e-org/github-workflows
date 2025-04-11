@@ -1,4 +1,4 @@
-name: CodeQL Scan
+name: CodeQL Scan workflow
 
 on:
   workflow_call:
@@ -21,7 +21,13 @@ jobs:
       - name: CodeQL init
         uses: github/codeql-action/init@v3
         with:
-          build-mode: autobuild
+          build-mode: manual
           languages: ${{ matrix.language }}
+      - name: Build project
+        uses: ./.github/actions/gradle-setup
+        with:
+          gradle_run: 'clean build -x test --no-daemon'
+          java_distribution: 'microsoft'
+          java_version: '21'
       - name: CodeQL Analysis
         uses: github/codeql-action/analyze@v3

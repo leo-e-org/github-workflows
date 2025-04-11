@@ -1,4 +1,4 @@
-name: Java build (Gradle wrapper)
+name: Build workflow (Gradle wrapper)
 
 on:
   workflow_call:
@@ -8,14 +8,14 @@ on:
         description: Gradle command line task for run
         required: false
         type: string
-      java_version:
-        default: '21'
-        description: JDK version for artifact build
-        required: false
-        type: string
       java_distribution:
         default: 'microsoft'
         description: JDK distribution for artifact build
+        required: false
+        type: string
+      java_version:
+        default: '21'
+        description: JDK version for artifact build
         required: false
         type: string
 
@@ -26,19 +26,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: JDK setup
-        uses: actions/setup-java@v4
+      - name: Gradle task
+        uses: ./.github/actions/gradle-setup
         with:
-          architecture: x64
-          distribution: ${{ inputs.java_distribution }}
-          java-version: ${{ inputs.java_version }}
-
-      - name: Change gradlew permission
-        run: chmod +x ./gradlew
-      - name: Gradle setup
-        uses: gradle/actions/setup-gradle@v4
-      - name: Gradle build (wrapper)
-        run: ./gradlew ${{ inputs.gradle_run }}
+          gradle_run: ${{ inputs.gradle_run }}
+          java_distribution: ${{ inputs.java_distribution }}
+          java_version: ${{ inputs.java_version }}
 
       - name: Copy artifact
         run: mkdir -pv artifact && cp -rv ./build/libs/*.jar artifact
