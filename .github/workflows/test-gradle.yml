@@ -1,10 +1,10 @@
-name: Java build (Gradle wrapper)
+name: Java test (Gradle wrapper)
 
 on:
   workflow_call:
     inputs:
       gradle_run:
-        default: clean build -x test --no-daemon
+        default: clean test --no-daemon
         description: Gradle command line task for run
         required: false
         type: string
@@ -20,8 +20,8 @@ on:
         type: string
 
 jobs:
-  build:
-    name: Build
+  test:
+    name: Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -37,16 +37,5 @@ jobs:
         run: chmod +x ./gradlew
       - name: Gradle setup
         uses: gradle/actions/setup-gradle@v4
-      - name: Gradle build (wrapper)
+      - name: Gradle test (wrapper)
         run: ./gradlew ${{ inputs.gradle_run }}
-
-      - name: Copy artifact
-        run: mkdir -pv artifact && cp -rv ./build/libs/*.jar artifact
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-        with:
-          name: artifact
-          path: ./artifact/*
-          if-no-files-found: error
-          retention-days: 30
