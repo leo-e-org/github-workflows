@@ -9,8 +9,8 @@ on:
 
 env:
   LINTER_CFG_DIR: ${{ github.workspace }}/.github/linters/
-  JAVA_LINT_CFG_URL: https://raw.githubusercontent.com/owner/github_workflows/main/.github/linters/sun_checks.xml
-  YAML_LINT_CFG_URL: https://raw.githubusercontent.com/owner/github_workflows/main/.github/linters/.yaml-lint.yml
+  JAVA_LINT_CFG_URL: https://raw.githubusercontent.com/leo-ely/github-workflows/main/.github/linters/sun_checks.xml
+  YAML_LINT_CFG_URL: https://raw.githubusercontent.com/leo-ely/github-workflows/main/.github/linters/.yaml-lint.yml
 
 jobs:
   check:
