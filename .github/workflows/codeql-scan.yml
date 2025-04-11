@@ -24,7 +24,7 @@ jobs:
           build-mode: manual
           languages: ${{ matrix.language }}
       - name: Build project
-        uses: ./.github/actions/gradle-setup
+        uses: leo-ely/github-workflows/.github/actions/gradle-setup@main
         with:
           gradle_run: 'clean build -x test --no-daemon'
           java_distribution: 'microsoft'
