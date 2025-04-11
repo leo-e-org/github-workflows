@@ -1,0 +1,31 @@
+name: CodeQL Scan
+
+on:
+  workflow_call:
+    inputs:
+      languages:
+        description: JSON array with languages to scan
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+jobs:
+  scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        language: ${{ fromJSON(inputs.languages) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: CodeQL init
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+      - name: CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
