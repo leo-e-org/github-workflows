@@ -26,8 +26,8 @@ jobs:
         run: |
           mkdir -pv ${{ env.LINTER_CFG_DIR }}
           cd ${{ env.LINTER_CFG_DIR }}
-          curl -H 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' ${{ env.YAML_LINT_CFG_URL }} -O
           curl -H 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' ${{ env.JAVA_LINT_CFG_URL }} -O
+          curl -H 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' ${{ env.YAML_LINT_CFG_URL }} -O
 
       - name: Lint code base
         uses: super-linter/super-linter/slim@v7
