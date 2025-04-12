@@ -1,5 +1,5 @@
 ---
-# Custom YAML linter for code base, based on YamlLint configuration
+# Custom YAML linter for code base (YamlLint-based)
 
 ###########################################
 # These are the rules used for            #
