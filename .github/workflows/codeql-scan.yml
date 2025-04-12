@@ -26,7 +26,7 @@ jobs:
       - name: Build project
         uses: leo-ely/github-workflows/.github/actions/gradle-setup@main
         with:
-          gradle_run: 'clean build -x test --no-daemon'
+          gradle_run: 'clean build -x test --no-daemon -Dorg.gradle.jvmargs=-Xmx1g'
           java_distribution: 'microsoft'
           java_version: '21'
       - name: CodeQL Analysis

@@ -25,8 +25,8 @@ jobs:
       - name: Copy linter configurations
         run: |
           mkdir -pv ${{ env.LINTER_CFG_DIR }}
-          cd ${{ env.LINTER_CFG_DIR }}
           curl -H 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' ${{ env.KOTLIN_LINT_CFG_URL }} -O
+          cd ${{ env.LINTER_CFG_DIR }}
           curl -H 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' ${{ env.YAML_LINT_CFG_URL }} -O
 
       - name: Lint code base
