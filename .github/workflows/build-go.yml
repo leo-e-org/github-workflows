@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       go_task:
-        default: 'go build -v'
+        default: 'go build -v -o artifact/app'
         description: Go task command
         required: false
         type: string
@@ -26,3 +26,11 @@ jobs:
         with:
           go_task: ${{ inputs.go_task }}
           go_version: ${{ inputs.go_version }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        with:
+          name: artifact
+          path: ./artifact/*
+          if-no-files-found: error
+          retention-days: 30
