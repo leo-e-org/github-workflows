@@ -1,0 +1,28 @@
+name: Build workflow (Go)
+
+on:
+  workflow_call:
+    inputs:
+      go_task:
+        default: 'go build -v'
+        description: Go task command
+        required: false
+        type: string
+      go_version:
+        default: '^1.24.2'
+        description: Go target version for setup action
+        required: false
+        type: string
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Go task
+        uses: leo-ely/github-workflows/.github/actions/go-setup@main
+        with:
+          go_task: ${{ inputs.go_task }}
+          go_version: ${{ inputs.go_version }}
