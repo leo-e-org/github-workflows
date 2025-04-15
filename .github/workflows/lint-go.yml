@@ -1,0 +1,27 @@
+name: Go lint workflow
+
+on:
+  workflow_call:
+    inputs:
+      go_version:
+        default: '^1.24.2'
+        description: Go target version for setup action
+        required: false
+        type: string
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Go setup
+        uses: actions/setup-go@v5
+        with:
+          cache: false
+          go-version: ${{ inputs.go_version }}
+      - name: Lint code base
+        uses: golangci/golangci-lint-action@v7

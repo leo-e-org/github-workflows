@@ -1,0 +1,24 @@
+name: Go composite action
+description: Sets up Go and runs the needed tasks
+
+inputs:
+  go_task:
+    description: Go task command
+    required: true
+  go_version:
+    description: Go target version for setup action
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Go setup
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ inputs.go_version }}
+    - name: Go dependencies install
+      run: go mod download
+      shell: bash
+    - name: Go task
+      run: ${{ inputs.go_task }}
+      shell: bash

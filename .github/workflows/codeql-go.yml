@@ -1,0 +1,32 @@
+name: CodeQL Scan workflow
+
+on:
+  workflow_call:
+    inputs:
+      languages:
+        description: JSON array with languages to scan
+        required: true
+        type: string
+
+jobs:
+  scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        language: ${{ fromJSON(inputs.languages) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: CodeQL init
+        uses: github/codeql-action/init@v3
+        with:
+          build-mode: manual
+          languages: ${{ matrix.language }}
+      - name: Build project
+        uses: leo-ely/github-workflows/.github/actions/go-setup@main
+        with:
+          go_task: 'go build -v'
+          go_version: '^1.24.2'
+      - name: CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
