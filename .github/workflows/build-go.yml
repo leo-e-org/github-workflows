@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       go_task:
-        default: 'go build -v -o artifact/app'
+        default: 'GOARCH=amd64 GOOS=linux go build -v -o artifact/app'
         description: Go task command
         required: false
         type: string
