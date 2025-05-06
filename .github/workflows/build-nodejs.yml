@@ -1,0 +1,44 @@
+name: Build workflow (Node.js/Angular)
+
+on:
+  workflow_call:
+    inputs:
+      base_href:
+        required: true
+        type: string
+      install_devkit:
+        default: false
+        required: false
+        type: boolean
+
+jobs:
+  node-18:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [ 20.x ]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Node.js task
+        uses: leo-ely/github-workflows/.github/actions/nodejs-setup@main
+        with:
+          node_cache: 'npm'
+          node_version: ${{ matrix.node-version }}
+      - name: Angular task
+        uses: leo-ely/github-workflows/.github/actions/angular-build@main
+        with:
+          base_href: ${{ inputs.base_href }}
+          environment: 'uat'
+          install_devkit: ${{ inputs.install_devkit }}
+
+      - name: Compress build files
+        run: zip -r artifact.zip ./artifact-*
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        with:
+          name: artifact
+          path: ./artifact.zip
+          if-no-files-found: error
+          retention-days: 30

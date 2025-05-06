@@ -1,0 +1,36 @@
+name: Angular composite action
+description: Installs Angular CLI, configures it and runs the needed tasks
+
+inputs:
+  base_href:
+    required: true
+    type: string
+  environment:
+    required: true
+    type: string
+  install_devkit:
+    required: true
+    type: boolean
+
+runs:
+  using: composite
+  steps:
+    - name: Angular CLI setup
+      run: npm install -g @angular/cli@latest
+      shell: bash
+    - name: Angular DevKit setup
+      if: inputs.install_devkit
+      run: npm install @angular-devkit/core --save-dev
+      shell: bash
+
+    - name: Generate artifact folders
+      run: mkdir -pv ./artifact-${{ inputs.environment }}
+      shell: bash
+    - name: Angular task
+      run: |
+        ng build --configuration=${{ inputs.environment }} \
+          --delete-output-path=false \
+          --output-hashing=all \
+          --base-href=${{ inputs.base_href }} \
+          --output-path ./artifact-${{ inputs.environment}}
+      shell: bash
