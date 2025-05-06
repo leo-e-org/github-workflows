@@ -1,0 +1,29 @@
+name: Node.js composite action
+description: Sets up Node.js, NPM caching and runs the needed tasks
+
+inputs:
+  node_cache:
+    description: Node.js caching for build
+    required: true
+  node_version:
+    description: Node.js version for build
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Node.js setup
+      uses: actions/setup-node@v4
+      with:
+        cache: ${{ inputs.node_cache }}
+        node-version: ${{ inputs.node_version }}
+
+    # - name: Generate .npmrc file
+    #   run: |
+    #     echo '@PRIVATE_ORGANIZATION:registry=https://npm.pkg.github.com/' >> ./.npmrc
+    #     echo '//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}' >> ./.npmrc
+    - name: NPM install
+      env:
+        TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: npm install
+      shell: bash

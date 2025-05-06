@@ -1,0 +1,30 @@
+name: Dependency publish (Node.js/Angular)
+
+on:
+  workflow_call:
+    inputs:
+      dependency_name:
+        required: true
+        type: string
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [ 20.x ]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Node.js task
+        uses: leo-ely/github-workflows/.github/actions/nodejs-setup@main
+        with:
+          node_cache: 'npm'
+          node_version: ${{ matrix.node-version }}
+
+      - name: Angular build
+        run: ng build ${{ inputs.dependency_name }}
+      - name: Angular publish
+        run: |
+          cd ./dist/${{ inputs.dependency_name }}
+          npm publish
