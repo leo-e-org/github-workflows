@@ -1,4 +1,4 @@
-name: CodeQL Scan workflow
+name: CodeQL Scan workflow (Gradle)
 
 on:
   workflow_call:
