@@ -10,7 +10,7 @@ on:
         type: string
       go_version:
         default: '^1.24.2'
-        description: Go target version for setup action
+        description: Go target version
         required: false
         type: string
 

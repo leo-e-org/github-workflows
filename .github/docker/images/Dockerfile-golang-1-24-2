@@ -1,0 +1,9 @@
+FROM golang:1.24.2
+
+WORKDIR /app
+
+COPY app config.yaml ./
+
+EXPOSE 8080
+
+CMD ["/app/app"]

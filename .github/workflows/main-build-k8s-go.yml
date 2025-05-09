@@ -1,0 +1,29 @@
+name: Kubernetes application build (Go)
+
+on:
+  workflow_call:
+    inputs:
+      docker_base_image:
+        default: 'Dockerfile-golang-1-24-2'
+        required: false
+        type: string
+      image_name:
+        required: true
+        type: string
+
+jobs:
+  go:
+    name: Go
+    uses: ./.github/workflows/build-go.yml
+    if: github.event_name == 'push'
+    secrets: inherit
+
+  docker:
+    name: Docker
+    needs: [ go ]
+    uses: ./.github/workflows/build-docker.yml
+    if: github.event_name == 'push'
+    with:
+      docker_base_image: ${{ inputs.docker_base_image }}
+      image_name: ${{ inputs.image_name }}
+    secrets: inherit

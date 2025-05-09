@@ -1,31 +1,24 @@
-name: Docker build
+name: Build workflow (Docker)
 
-on: [ workflow_call ]
-
-env:
-  DOCKER_REGISTRY: ghcr.io
-  IMAGE_OWNER: owner
-  PGP_KEY: ${{ secrets.PGP_SECRET_PASSPHRASE }}
-  DOCKER_FILE_URL: https://raw.githubusercontent.com/owner/github_workflows/develop/.github/docker/images/
-  DOCKER_FILE_NAME: Dockerfile-corretto-21
+on:
+  workflow_call:
+    inputs:
+      docker_base_image:
+        description: Docker image name for Dockerfile
+        required: true
+        type: string
+      image_name:
+        description: Docker image name for tagging
+        required: true
+        type: string
 
 jobs:
-  user-variables:
-    uses: ./.github/workflows/util-user-variables.yml
-    secrets: inherit
-
-  image:
-    needs: [ user-variables ]
+  build:
+    name: Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Configure environment variables
-        run: |
-          user=$(gpg --decrypt --quiet --batch --passphrase "$PGP_KEY" --output - <(echo "${{ needs.user-variables.outputs.user }}" | base64 --decode))
-          token=$(gpg --decrypt --quiet --batch --passphrase "$PGP_KEY" --output - <(echo "${{ needs.user-variables.outputs.token }}" | base64 --decode))
-          echo "USER=$(echo $user)" >> $GITHUB_ENV
-          echo "TOKEN=$(echo $token)" >> $GITHUB_ENV
-
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - name: Create artifact directory
         run: mkdir -pv artifact/
       - name: Download artifact
@@ -34,81 +27,10 @@ jobs:
           name: artifact
           path: ./artifact/
 
-      - name: Copy artifacts
-        run: |
-          cp -rv ./deploy/. artifact
-          cp -rv ./artifact/*.jar artifact/dv/
-          cp -rv ./artifact/*.jar artifact/qa/
-
-      - name: Configure Dockerfile for build
-        run: |
-          if [ -f ./deploy/Dockerfile ]
-          then
-            echo ./artifact/dv/ ./artifact/qa/ | xargs -n 1 cp -v ./deploy/Dockerfile
-          else
-            curl -H 'Authorization: Bearer ${{ env.TOKEN }}' ${{ env.DOCKER_FILE_URL }}${{ env.DOCKER_FILE_NAME }} -O
-            echo ./artifact/dv/Dockerfile ./artifact/qa/Dockerfile | xargs -n 1 cp -v ./${{ env.DOCKER_FILE_NAME }}
-          fi
-
-      - name: Docker login to GitHub Packages
-        run: echo "${{ env.TOKEN }}" | docker login ${{ env.DOCKER_REGISTRY }} -u ${{ env.USER }} --password-stdin
-
-      - name: Set IMAGE_NAME environment variable
-        run: echo "IMAGE_NAME=$(echo ${{ github.repository }} | cut -c 22- | tr _ -)" >> $GITHUB_ENV
-      - name: Set IMAGE_VERSION environment variable
-        run: echo "IMAGE_VERSION=$(echo ${{ github.ref_name }} | tr / - | tr _ -)" >> $GITHUB_ENV
-
-      - name: Set IMAGE_NAME environment variable (dv)
-        run: echo "IMAGE_DV=$(echo ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}-dv:${{ env.IMAGE_VERSION }})" >> $GITHUB_ENV
-      - name: Set IMAGE_NAME environment variable (qa)
-        run: echo "IMAGE_QA=$(echo ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}-qa:${{ env.IMAGE_VERSION }})" >> $GITHUB_ENV
-
-      - name: Fetch old image ID from Registry (dv)
-        run: |
-          echo "IMAGE_ID_DV=$(curl -X GET -H 'application/vnd.github+json' -H 'Authorization: Bearer ${{ env.TOKEN }}' \
-            https://api.github.com/orgs/${{ env.IMAGE_OWNER }}/packages/container/${{ env.IMAGE_NAME }}-dv/versions \
-            | jq -c '.[] | select(.metadata.container.tags[] == "${{ env.IMAGE_VERSION }}") | .id')" >> $GITHUB_ENV
-      - name: Delete old tagged image from Registry (dv)
-        run: |
-          echo "IMAGE_DV_STATUS=$(curl -X DELETE -H 'application/vnd.github+json' -H 'Authorization: Bearer ${{ env.TOKEN }}' \
-            https://api.github.com/orgs/${{ env.IMAGE_OWNER }}/packages/container/${{ env.IMAGE_NAME }}-dv/versions/${{ env.IMAGE_ID_DV }} \
-            | jq -c '.status')" >> $GITHUB_ENV
-      - name: Delete old image from Registry (dv)
-        if: contains(env.IMAGE_DV_STATUS, '400')
-        run: |
-          curl -X DELETE -H 'application/vnd.github+json' -H 'Authorization: Bearer ${{ env.TOKEN }}' \
-            https://api.github.com/orgs/${{ env.IMAGE_OWNER }}/packages/container/${{ env.IMAGE_NAME }}-dv
-
-      - name: Fetch old image ID from Registry (qa)
-        run: |
-          echo "IMAGE_ID_QA=$(curl -X GET -H 'application/vnd.github+json' -H 'Authorization: Bearer ${{ env.TOKEN }}' \
-            https://api.github.com/orgs/${{ env.IMAGE_OWNER }}/packages/container/${{ env.IMAGE_NAME }}-qa/versions \
-            | jq -c '.[] | select(.metadata.container.tags[] == "${{ env.IMAGE_VERSION }}") | .id')" >> $GITHUB_ENV
-      - name: Delete old tagged image from Registry (qa)
-        run: |
-          echo "IMAGE_QA_STATUS=$(curl -X DELETE -H 'application/vnd.github+json' -H 'Authorization: Bearer ${{ env.TOKEN }}' \
-            https://api.github.com/orgs/${{ env.IMAGE_OWNER }}/packages/container/${{ env.IMAGE_NAME }}-qa/versions/${{ env.IMAGE_ID_QA }} \
-            | jq -c '.status')" >> $GITHUB_ENV
-      - name: Delete old image from Registry (qa)
-        if: contains(env.IMAGE_QA_STATUS, '400')
-        run: |
-          curl -X DELETE -H 'application/vnd.github+json' -H 'Authorization: Bearer ${{ env.TOKEN }}' \
-            https://api.github.com/orgs/${{ env.IMAGE_OWNER }}/packages/container/${{ env.IMAGE_NAME }}-qa
-
-      - name: Docker build (dv)
-        run: |
-          echo ${{ env.IMAGE_DV }}
-          cd artifact/dv/
-          docker build --no-cache -t ${{ env.IMAGE_DV }} .
-          cd -
-      - name: Docker push to Registry (dv)
-        run: docker push ${{ env.IMAGE_DV }}
-
-      - name: Docker build (qa)
-        run: |
-          echo ${{ env.IMAGE_QA }}
-          cd artifact/qa/
-          docker build --no-cache -t ${{ env.IMAGE_QA }} .
-          cd -
-      - name: Docker push to Registry (qa)
-        run: docker push ${{ env.IMAGE_QA }}
+      - name: Copy files for Docker task
+        run: cp -rv ./deploy/. artifact/
+      - name: Docker task
+        uses: leo-ely/github-workflows/.github/actions/docker-build@main
+        with:
+          docker_base_image: ${{ inputs.docker_base_image }}
+          image_name: ${{ inputs.image_name }}

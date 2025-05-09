@@ -1,0 +1,38 @@
+name: Kubernetes application build (Gradle wrapper)
+
+on:
+  workflow_call:
+    inputs:
+      docker_base_image:
+        default: 'Dockerfile-corretto-21'
+        required: false
+        type: string
+      image_name:
+        required: true
+        type: string
+      java_version:
+        required: false
+        type: string
+      java_distribution:
+        required: false
+        type: string
+
+jobs:
+  gradle:
+    name: Gradle
+    uses: ./.github/workflows/build-gradle.yml
+    if: github.event_name == 'push'
+    with:
+      java_distribution: ${{ inputs.java_distribution }}
+      java_version: ${{ inputs.java_version }}
+    secrets: inherit
+
+  docker:
+    name: Docker
+    needs: [ gradle ]
+    uses: ./.github/workflows/build-docker.yml
+    if: github.event_name == 'push'
+    with:
+      docker_base_image: ${{ inputs.docker_base_image }}
+      image_name: ${{ inputs.image_name }}
+    secrets: inherit

@@ -1,0 +1,35 @@
+name: Docker composite action
+description: Configures Docker image and runs the needed tasks
+
+inputs:
+  docker_base_image:
+    required: true
+    type: string
+  docker_base_image_url:
+    default: 'https://raw.githubusercontent.com/owner/github_workflows/develop/.github/docker/images/'
+    required: false
+    type: string
+  image_name:
+    required: true
+    type: string
+
+runs:
+  using: composite
+  steps:
+    - name: Configure Dockerfile for build
+      run: |
+        if [ -f ./deploy/Dockerfile ]
+        then
+          echo ./artifact/ | xargs -n 1 cp -v ./deploy/Dockerfile
+        else
+          curl -H 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' ${{ inputs.docker_base_image_url }}${{ inputs.docker_base_image }} -O
+          echo ./artifact/Dockerfile | xargs -n 1 cp -v ./${{ inputs.docker_base_image }}
+        fi
+      shell: bash
+    - name: Docker task
+      run: |
+        cd artifact/
+        docker build --no-cache -t ${{ inputs.image_name }}:${{ github.sha }} .
+        docker save -o image.tar ${{ inputs.image_name }}:${{ github.sha }}
+        cd -
+      shell: bash
