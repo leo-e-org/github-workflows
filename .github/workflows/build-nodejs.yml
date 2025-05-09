@@ -21,12 +21,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Node.js task
-        uses: leo-ely/github-workflows/.github/actions/nodejs-setup@main
+        uses: leo-e-org/github-workflows/.github/actions/nodejs-setup@main
         with:
           node_cache: 'npm'
           node_version: ${{ matrix.node-version }}
       - name: Angular task
-        uses: leo-ely/github-workflows/.github/actions/angular-build@main
+        uses: leo-e-org/github-workflows/.github/actions/angular-build@main
         with:
           base_href: ${{ inputs.base_href }}
           environment: 'uat'

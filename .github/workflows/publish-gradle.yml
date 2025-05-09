@@ -28,7 +28,7 @@ jobs:
         uses: actions/checkout@v4
       - name: Gradle task
         id: gradle_task
-        uses: leo-ely/github-workflows/.github/actions/gradle-setup@main
+        uses: leo-e-org/github-workflows/.github/actions/gradle-setup@main
         with:
           gradle_run: ${{ inputs.gradle_run }}
           java_distribution: ${{ inputs.java_distribution }}
