@@ -6,7 +6,7 @@ inputs:
     required: true
     type: string
   docker_base_image_url:
-    default: 'https://raw.githubusercontent.com/leo-e-org/github_workflows/develop/.github/docker/images/'
+    default: 'https://raw.githubusercontent.com/leo-e-org/github-workflows/main/.github/docker/images/'
     required: false
     type: string
   image_name:
