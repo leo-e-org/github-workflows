@@ -5,9 +5,11 @@ on:
     inputs:
       docker_base_image:
         default: 'Dockerfile-golang-1-24-2'
+        description: Docker image name for Dockerfile
         required: false
         type: string
       image_name:
+        description: Docker image name for tagging
         required: true
         type: string
 

@@ -5,15 +5,21 @@ on:
     inputs:
       docker_base_image:
         default: 'Dockerfile-corretto-21'
+        description: Docker image name for Dockerfile
         required: false
         type: string
       image_name:
+        description: Docker image name for tagging
         required: true
         type: string
-      java_version:
+      java_distribution:
+        default: 'microsoft'
+        description: JDK distribution for artifact build
         required: false
         type: string
-      java_distribution:
+      java_version:
+        default: '21'
+        description: JDK version for artifact build
         required: false
         type: string
 
