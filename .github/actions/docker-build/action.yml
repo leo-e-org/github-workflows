@@ -12,6 +12,9 @@ inputs:
   image_name:
     required: true
     type: string
+  token:
+    required: true
+    type: string
 
 runs:
   using: composite
@@ -22,7 +25,7 @@ runs:
         then
           echo ./artifact/ | xargs -n 1 cp -v ./deploy/Dockerfile
         else
-          curl -H 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' ${{ inputs.docker_base_image_url }}${{ inputs.docker_base_image }} -O
+          curl -H 'Authorization: Bearer ${{ inputs.token }}' ${{ inputs.docker_base_image_url }}${{ inputs.docker_base_image }} -O
           echo ./artifact/Dockerfile | xargs -n 1 cp -v ./${{ inputs.docker_base_image }}
         fi
       shell: bash

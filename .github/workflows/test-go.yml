@@ -22,7 +22,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Go task
-        uses: leo-ely/github-workflows/.github/actions/go-setup@main
+        uses: leo-e-org/github-workflows/.github/actions/go-setup@main
         with:
           go_task: ${{ inputs.go_task }}
           go_version: ${{ inputs.go_version }}

@@ -29,8 +29,15 @@ jobs:
 
       - name: Copy files for Docker task
         run: cp -rv ./deploy/. artifact/
+      - name: Generate token for Docker task
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.PRIVATE_KEY }}
       - name: Docker task
-        uses: leo-ely/github-workflows/.github/actions/docker-build@main
+        uses: leo-e-org/github-workflows/.github/actions/docker-build@main
         with:
           docker_base_image: ${{ inputs.docker_base_image }}
           image_name: ${{ inputs.image_name }}
+          token: ${{ steps.app-token.outputs.token }}
